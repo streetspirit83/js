@@ -1,0 +1,653 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>Screener</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+
+<!-- ════════════════════════════════════════════════
+     § 0  DESIGN TOKENS
+     ════════════════════════════════════════════════ -->
+<style>
+:root{
+  --bg:#FFFFFF;
+  --text:#00171F;
+  --accent:#00A8E8;
+  --highlight-neg:#EF4242;
+  --highlight-pos:#9BCF63;
+  --surface:#E9E7E7;
+
+  --radius:4px;
+
+  --font-sans:'DM Sans',system-ui,sans-serif;
+  --font-mono:'DM Mono',ui-monospace,monospace;
+
+  --fs-h:22px;  --fw-h:700;
+  --fs-b:16px;  --fw-b:700;
+  --fs-l:13px;  --fw-l:300;
+  --fs-m:16px;  --fw-m:700;
+
+  --gap:2px;
+  --pad:8px;
+  --nav-h:45px;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--font-sans);
+  font-size:var(--fs-b);
+  font-weight:var(--fw-b);
+  -webkit-font-smoothing:antialiased;
+  padding-bottom:calc(var(--nav-h) + 56px + env(safe-area-inset-bottom));
+}
+
+button,select{
+  font-family:inherit;font-size:var(--fs-b);font-weight:var(--fw-b);
+  color:var(--text);background:var(--surface);
+  border:0;border-radius:var(--radius);
+  padding:8px 12px;cursor:pointer;
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  transition:background .15s,transform .05s,opacity .15s;
+}
+button:hover{background:#dcd9d9}
+button:active{transform:translateY(1px)}
+button:disabled{opacity:.4;cursor:not-allowed}
+button.icon{width:38px;height:38px;padding:0}
+button.primary{background:var(--accent);color:#fff}
+button.primary:hover{background:#0095cf}
+
+.label{font-size:var(--fs-l);font-weight:var(--fw-l);text-transform:uppercase;letter-spacing:.04em;opacity:.7}
+.mono{font-family:var(--font-mono);font-size:var(--fs-m);font-weight:var(--fw-m)}
+.h{font-size:var(--fs-h);font-weight:var(--fw-h);letter-spacing:-.01em}
+
+.pos{color:var(--highlight-pos)}
+.neg{color:var(--highlight-neg)}
+
+/* ── Top bar ─────────────────────────────── */
+.topbar{
+  display:flex;align-items:center;gap:var(--gap);
+  padding:var(--pad);
+  border-bottom:1px solid var(--surface);
+  position:sticky;top:0;background:var(--bg);z-index:10;
+}
+.topbar .brand{display:flex;align-items:center;gap:8px;flex:1;min-width:0}
+.topbar .brand .title{display:flex;flex-direction:column;line-height:1.1;min-width:0}
+.topbar .brand .title b{font-size:var(--fs-h);font-weight:var(--fw-h);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.topbar .brand .title span{font-size:var(--fs-l);font-weight:var(--fw-l);opacity:.6}
+.topbar .actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+
+/* ── Section header (toolbar) ────────────── */
+.toolbar{
+  display:flex;align-items:center;gap:8px;
+  padding:var(--pad);
+  flex-wrap:wrap;
+}
+.toggle-group{display:inline-flex;background:var(--surface);border-radius:var(--radius);padding:3px}
+.toggle-group button{background:transparent;border-radius:6px;padding:6px 10px}
+.toggle-group button.active{background:var(--bg);box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.toolbar .spacer{flex:1}
+
+/* ── Index ticker strip (bottom, above nav) ─ */
+.ticker{
+  position:fixed;left:0;right:0;
+  bottom:calc(var(--nav-h) + env(safe-area-inset-bottom));
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));
+  gap:6px;
+  padding:6px var(--pad);
+  background:var(--bg);
+  border-top:1px solid var(--surface);
+  z-index:9;
+}
+.ticker .cell{
+  background:var(--surface);border-radius:var(--radius);
+  padding:5px 8px;line-height:1.15;min-width:0;
+  display:flex;flex-direction:column;
+}
+.ticker .cell .row1{
+  display:flex;justify-content:space-between;align-items:baseline;gap:6px;
+  font:500 12px var(--font-mono);
+}
+.ticker .cell .row1 .name{
+  font:700 10px var(--font-sans);
+  text-transform:uppercase;letter-spacing:.04em;opacity:.7;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.ticker .cell .row2{
+  font-size:10px;font-weight:300;opacity:.7;
+  display:flex;justify-content:space-between;gap:6px;
+}
+
+/* ════════════════════════════════════════════════
+   CARD VIEW
+   ════════════════════════════════════════════════ */
+.s-card{
+  background:var(--surface);border-radius:var(--radius);
+  padding:12px var(--pad);margin-bottom:var(--gap);
+  display:grid;
+  grid-template-columns:auto 1fr auto;
+  grid-template-areas:"tk name trend" "meta meta meta" "stats stats stats" "why why why";
+  gap:6px 10px;align-items:center;
+}
+
+/* — Header row — */
+.s-card .tk    { grid-area:tk; font:500 18px/1 var(--font-mono); letter-spacing:-.01em }
+.s-card .name  { grid-area:name; font-size:13px; font-weight:700; overflow:hidden; white-space:nowrap; text-overflow:ellipsis }
+.s-card .trend { grid-area:trend; display:flex; align-items:center; gap:5px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.03em }
+
+/* — Trend dot — */
+.s-card .trend .dot         { width:8px; height:8px; border-radius:50%; display:inline-block }
+.s-card .trend .dot.bull    { background:var(--highlight-pos) }
+.s-card .trend .dot.bear    { background:var(--highlight-neg) }
+.s-card .trend .dot.neutral { background:#E0B83A }
+
+/* — Meta row — */
+.s-card .meta        { grid-area:meta; display:flex; flex-wrap:wrap; gap:6px 14px; font-size:11px; font-weight:300; opacity:.8 }
+.s-card .meta .exch  { font-weight:700; opacity:1 }
+.s-card .meta .price { font:500 13px var(--font-mono); opacity:1 }
+.s-card .meta .chg   { font:500 12px var(--font-mono) }
+
+/* — Stats + Why: shared separator — */
+.s-card .stats,
+.s-card .why   { padding-top:6px; border-top:1px solid rgba(0,0,0,.06) }
+
+/* — Stats grid — */
+.s-card .stats           { grid-area:stats; display:grid; grid-template-columns:repeat(auto-fit,minmax(80px,1fr)); gap:6px 10px; font-size:11px }
+.s-card .stats .k        { display:flex; flex-direction:column; gap:1px; line-height:1.2 }
+.s-card .stats .k .label { font-size:9px; opacity:.6 }
+.s-card .stats .k .v     { font:500 12px var(--font-mono) }
+
+/* — Why row — */
+.s-card .why   { grid-area:why; font-size:11px; font-weight:300; line-height:1.35; display:flex; flex-direction:column; gap:2px }
+.s-card .why b { font-weight:700 }
+
+/* ════════════════════════════════════════════════
+   TABLE VIEW
+   ════════════════════════════════════════════════ */
+.s-table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch }
+.s-table      { width:100%; border-collapse:collapse }
+
+.s-table thead th {
+  padding:8px 10px; text-align:left; text-transform:uppercase;
+  font-size:var(--fs-l); font-weight:300; letter-spacing:.04em;
+  border-bottom:1px solid var(--surface); opacity:.7;
+}
+.s-table td           { padding:6px; line-height:1.25; vertical-align:top }
+.s-table td.num       { font:500 1em var(--font-mono); text-align:left }
+
+/* rounded row corners */
+.s-table tbody tr td:first-child { border-radius:var(--radius) 0 0 var(--radius) }
+.s-table tbody tr td:last-child  { border-radius:0 var(--radius) var(--radius) 0 }
+
+/* — Name cell — */
+.s-table .t-name      { display:flex; flex-direction:column; gap:1px; min-width:0 }
+.s-table .t-name .tk  { font:500 13px var(--font-mono) }
+.s-table .t-name .full{ font-size:10px; opacity:.65; max-width:80px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis }
+
+/* — Position cell — */
+.s-table .t-pos      { display:flex; flex-direction:column; text-align:left }
+.s-table .t-pos .v   { font:500 14px var(--font-mono) }
+.s-table .t-pos .pct { font-size:13px; opacity:.65 }
+
+/* — Rating cell — */
+.s-table .t-rtg          { display:flex; flex-direction:column; align-items:flex-end; gap:2px }
+.s-table .t-rtg .bar     { position:relative; overflow:hidden; width:60px; height:6px; border-radius:3px; background:rgba(0,0,0,.08) }
+.s-table .t-rtg .bar > i { position:absolute; inset:0; border-radius:3px; background:var(--accent) }
+
+/* ════════════════════════════════════════════════
+   BADGES  &  TAGS
+   ════════════════════════════════════════════════ */
+.badge { display:inline-block; padding:1px 6px; border-radius:4px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; background:rgba(0,0,0,.08) }
+.badge.pause              { opacity:.7 }
+.badge.watch, .badge.mid  { background:#E0B83A33; color:#7A6118 }
+.badge.active, .badge.lo  { background:#9BCF6333; color:#3F6B1F }
+.badge.hi                 { background:#EF424222; color:#9B2828 }
+
+.tag { display:inline-block; padding:1px 6px; border-radius:10px; font-size:10px; font-weight:500; background:rgba(0,168,232,.12); color:#006a96 }
+
+/* ── Content frames ──────────────────────── */
+.frame{padding:0 var(--pad) var(--pad)}
+.frame[hidden]{display:none}
+
+.card{
+  background:var(--surface);border-radius:var(--radius);
+  padding:var(--pad);margin-bottom:var(--gap);
+}
+
+/* ── Tabs ────────────────────────────────── */
+.tabs{display:flex;gap:6px;margin-bottom:var(--gap)}
+.tabs button{flex:1;background:var(--surface)}
+.tabs button.active{background:var(--accent);color:#fff}
+.tabpanel[hidden]{display:none}
+
+/* ── Bottom nav ──────────────────────────── */
+.botnav{
+  position:fixed;left:0;right:0;bottom:0;
+  height:calc(var(--nav-h) + env(safe-area-inset-bottom));
+  padding:8px var(--pad) calc(8px + env(safe-area-inset-bottom));
+  background:var(--bg);border-top:1px solid var(--surface);
+  display:flex;align-items:center;gap:var(--gap);
+  z-index:10;
+}
+.botnav button.icon{background:var(--surface)}
+.botnav .grow{flex:1}
+.botnav select{
+  width:100%;background:var(--surface);
+  padding:10px 12px;border-radius:var(--radius);
+  appearance:none;
+  background-image:linear-gradient(45deg,transparent 50%,var(--text) 50%),linear-gradient(135deg,var(--text) 50%,transparent 50%);
+  background-position:calc(100% - 18px) 50%,calc(100% - 13px) 50%;
+  background-size:5px 5px;background-repeat:no-repeat;
+  padding-right:32px;
+}
+
+/* ── Spinner ─────────────────────────────── */
+@keyframes spin{to{transform:rotate(360deg)}}
+.spinning [data-lucide]{animation:spin .9s linear infinite}
+[data-lucide]{width:18px;height:18px;stroke-width:2}
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════
+     MARKUP — Top bar
+     ════════════════════════════════════════════════ -->
+<header class="topbar">
+  <button id="menu-nav" class="icon" aria-label="Menu" title="Menu">
+    <i data-lucide="menu"></i>
+  </button>
+  <div class="brand">
+    <div class="title">
+      <b id="brand-title">Screener</b>
+      <span id="brand-sub">&lt;-Portfolio</span>
+    </div>
+  </div>
+  <div class="actions">
+    <button id="btn-json-import"><i data-lucide="upload"></i><span>Import</span></button>
+    <button id="btn-json-export"><i data-lucide="download"></i><span>Export</span></button>
+    <button id="btn-blob" class="icon" aria-label="Save blob" title="Save"><i data-lucide="cloud-upload"></i></button>
+    <button id="btn-config" class="icon" aria-label="Config" title="API config"><i data-lucide="settings"></i></button>
+  </div>
+</header>
+
+<!-- hidden nav buttons (driven by #menu-nav) -->
+<nav style="display:none">
+  <button id="menu-nav-btn-screener"></button>
+  <button id="menu-nav-btn-portfolio"></button>
+</nav>
+
+<!-- ════════════════════════════════════════════════
+     MARKUP — Screener frame
+     ════════════════════════════════════════════════ -->
+<section id="frame-screener" class="frame">
+  <div class="toolbar">
+    <div class="toggle-group" role="tablist" aria-label="View">
+      <button id="btn-element-card-view" class="active"><i data-lucide="layout-grid"></i><span>Card</span></button>
+      <button id="btn-element-table-view"><i data-lucide="table"></i><span>Table</span></button>
+    </div>
+    <div class="spacer"></div>
+    <button id="btn-element-refresh" class="icon" aria-label="Refresh"><i data-lucide="refresh-cw"></i></button>
+    <button id="btn-element-fullrefresh" class="icon" aria-label="Full refresh"><i data-lucide="refresh-ccw-dot"></i></button>
+  </div>
+
+  <div id="screener-list"></div>
+</section>
+
+<!-- ════════════════════════════════════════════════
+     MARKUP — Portfolio frame
+     ════════════════════════════════════════════════ -->
+<section id="frame-portfolio" class="frame" hidden>
+  <div class="tabs" role="tablist">
+    <button class="menu-nav-portfolio-tab active" data-tab="performance">Performance</button>
+    <button class="menu-nav-portfolio-tab" data-tab="tax">Tax</button>
+  </div>
+
+  <div class="tabpanel" id="tab-performance">
+    <div class="card"><span class="label">Performance</span><div>Platzhalter — Summary of Portfolio Performance</div></div>
+  </div>
+  <div class="tabpanel" id="tab-tax" hidden>
+    <div class="card"><span class="label">Tax</span><div>Platzhalter — Tabelle realisierter Gewinne / Verluste</div></div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════
+     MARKUP — Index ticker strip (global, above bottom nav)
+     ════════════════════════════════════════════════ -->
+<aside class="ticker" id="ticker-strip" aria-label="Market indices">
+  <div class="cell">
+    <div class="row1"><span class="name">S&amp;P 500</span><span id="idx-sp-price">5,803.2</span></div>
+    <div class="row2"><span id="idx-sp-change" class="pos">+0.42 %</span><span>SPX</span></div>
+  </div>
+  <div class="cell">
+    <div class="row1"><span class="name">DAX</span><span id="idx-dax-price">19,210</span></div>
+    <div class="row2"><span id="idx-dax-change" class="neg">−0.18 %</span><span>GDAXI</span></div>
+  </div>
+  <div class="cell">
+    <div class="row1"><span class="name">USD / EUR</span><span id="fx-rate">0.928</span></div>
+    <div class="row2"><span id="fx-change" class="pos">+0.05 %</span><span>Spot</span></div>
+  </div>
+</aside>
+
+<!-- ════════════════════════════════════════════════
+      MARKUP — Bottom nav
+     ════════════════════════════════════════════════ -->
+<nav class="botnav">
+  <button id="nav-bottom-element-home" class="icon" aria-label="Home"><i data-lucide="home"></i></button>
+  <button id="nav-bottom-element-alert" class="icon" aria-label="Alerts"><i data-lucide="bell"></i></button>
+  <div class="grow">
+    <select id="nav-bottom-element-dropdown" aria-label="Bucket">
+      <option value="portfolio">Portfolio</option>
+      <option value="watchlist">Watchlist</option>
+      <option value="neutral">Neutral</option>
+    </select>
+  </div>
+</nav>
+
+<!-- ════════════════════════════════════════════════
+     § 1  CONFIG
+     ════════════════════════════════════════════════ -->
+<script>
+const CONFIG = {
+  app:'screener',
+  version:'0.1.0',
+  storageKey:'screener.state.v1',
+  defaultView:'card',
+  defaultFrame:'screener',
+  defaultBucket:'portfolio',
+  api:{ twelvedata:{ base:'https://api.twelvedata.com', key:'' },
+        yahoo:{ base:'https://query1.finance.yahoo.com', key:'' } },
+  blob:{ endpoint:'/.netlify/functions/blob' }
+};
+
+/* ════════════════════════════════════════════════
+   § 2  SCHEMA + localStorage
+   ════════════════════════════════════════════════ */
+const Schema = {
+  state:{
+    frame:'screener',          // 'screener' | 'portfolio'
+    view:'card',               // 'card' | 'table'
+    bucket:'portfolio',        // 'portfolio' | 'watchlist' | 'neutral'
+    portfolioTab:'performance' // 'performance' | 'tax'
+  },
+  data:{
+    indices:[],   // { symbol, price, changePct }
+    fx:{ usdEur:null },
+    holdings:[],  // { symbol, qty, avg, ... }
+    alerts:[]
+  }
+};
+
+/* Mock screener items — replace with API data later (§3) */
+const MOCK_ITEMS = [
+  {
+    ticker:'NVDA', name:'NVIDIA Corp', exchange:'NASDAQ', sector:'Halbleiter / AI',
+    trend:'bull', trendLabel:'bullish',
+    price:111.93, currency:'USD', changePct:-2.76,
+    rsi:67, rsiLabel:'neutral', macd:-0.53,
+    range52w:56, alert:'<95', entry:16, alertState:'pause',
+    momentum:'hoch', perf:597, rating:0.92,
+    tags:['AI','High'],
+    why:'AI Nachfrage + Datacenter Spend treiben Momentum.',
+    next:'Q2 Earnings 14 May'
+  },
+  {
+    ticker:'AIXA', name:'AIXTRON SE', exchange:'XETRA', sector:'Semiconductor Equip',
+    trend:'neutral', trendLabel:'neutral',
+    price:15.82, currency:'EUR', changePct:1.18,
+    rsi:49, rsiLabel:'watchlist', macd:0.21,
+    range52w:31, alert:'<14', entry:16, alertState:'active',
+    momentum:'mittel', perf:-1.3, rating:0.55,
+    tags:['Energy'],
+    why:'Nachfrage nach Leistungshalbleitern stabilisiert sich.',
+    next:'Earnings 28 May'
+  },
+  {
+    ticker:'ASML', name:'ASML Holding', exchange:'AMS', sector:'Lithography',
+    trend:'bull', trendLabel:'bullish',
+    price:642.10, currency:'EUR', changePct:0.84,
+    rsi:58, rsiLabel:'neutral', macd:1.14,
+    range52w:42, alert:'<600', entry:620, alertState:'active',
+    momentum:'hoch', perf:21.5, rating:0.81,
+    tags:['AI','EU'],
+    why:'EUV-Auftragslage robust, China-Risiko eingepreist.',
+    next:'CMD 12 Jun'
+  },
+  {
+    ticker:'EOAN', name:'E.ON SE', exchange:'XETRA', sector:'Versorger',
+    trend:'bear', trendLabel:'bearish',
+    price:11.46, currency:'EUR', changePct:-0.65,
+    rsi:38, rsiLabel:'watchlist', macd:-0.08,
+    range52w:18, alert:'>12', entry:11, alertState:'active',
+    momentum:'niedrig', perf:-4.2, rating:0.41,
+    tags:['Energy','Dividend'],
+    why:'Regulatorik + Netzentgelt-Reform belasten Ausblick.',
+    next:'Q1 Earnings 14 May'
+  }
+];
+
+const Store = {
+  load(){
+    try{
+      const raw = localStorage.getItem(CONFIG.storageKey);
+      return raw ? { ...structuredClone(Schema), ...JSON.parse(raw) } : structuredClone(Schema);
+    }catch(e){ console.warn('[store] load failed', e); return structuredClone(Schema); }
+  },
+  save(s){ try{ localStorage.setItem(CONFIG.storageKey, JSON.stringify(s)); }catch(e){ console.warn('[store] save failed', e); } }
+};
+let STATE = Store.load();
+
+/* ════════════════════════════════════════════════
+   § 3  DATA / API LAYER  (placeholder)
+   ════════════════════════════════════════════════ */
+// TODO: TwelveData + Yahoo Finance fetchers, normalization, caching
+
+/* ════════════════════════════════════════════════
+   § 4  BUSINESS LOGIC  (placeholder)
+   ════════════════════════════════════════════════ */
+// TODO: portfolio metrics, tax calc, screener filters, alerts evaluation
+
+/* ════════════════════════════════════════════════
+   § 5  RENDER
+   ════════════════════════════════════════════════ */
+const $ = (sel,root=document)=>root.querySelector(sel);
+const $$ = (sel,root=document)=>[...root.querySelectorAll(sel)];
+
+const Render = {
+  all(){ this.frame(); this.viewToggle(); this.tabs(); this.ticker(); this.list(); },
+  frame(){
+    const s = STATE.state.frame;
+    $('#frame-screener').hidden = s!=='screener';
+    $('#frame-portfolio').hidden = s!=='portfolio';
+    $('#brand-title').textContent = s==='portfolio' ? 'Portfolio' : 'Screener';
+    $('#brand-sub').textContent  = s==='portfolio' ? '<-Screener' : '<-Portfolio';
+  },
+  viewToggle(){
+    const v = STATE.state.view;
+    $('#btn-element-card-view').classList.toggle('active', v==='card');
+    $('#btn-element-table-view').classList.toggle('active', v==='table');
+    this.list();
+  },
+  tabs(){
+    const t = STATE.state.portfolioTab;
+    $$('.menu-nav-portfolio-tab').forEach(b=>b.classList.toggle('active', b.dataset.tab===t));
+    $('#tab-performance').hidden = t!=='performance';
+    $('#tab-tax').hidden          = t!=='tax';
+  },
+  ticker(){
+    // Mock values stay in markup; real values would patch #idx-sp-price etc. here.
+  },
+
+  /* ── Screener list (card / table) ─────────── */
+  list(){
+    const host = $('#screener-list'); if(!host) return;
+    const items = MOCK_ITEMS;
+    host.innerHTML = STATE.state.view==='table' ? this._table(items) : this._cards(items);
+    if (window.lucide) lucide.createIcons();
+  },
+
+  _fmtPct(p){
+    const sign = p>0?'+':'';
+    const cls  = p>0?'pos':(p<0?'neg':'');
+    return `<span class="${cls}">${sign}${p.toFixed(2)} %</span>`;
+  },
+  _fmtPrice(p,cur){
+    return `${p.toLocaleString('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2})} ${cur}`;
+  },
+  _trendDot(t){ return `<span class="dot ${t}"></span>`; },
+  _alertBadge(s){
+    const map = {active:['active','aktiv'], pause:['pause','pausiert'], neutral:['neutral','neutral']};
+    const [cls,label] = map[s] || map.neutral;
+    return `<span class="badge ${cls}">${label}</span>`;
+  },
+  _momentumBadge(m){
+    const map = {hoch:['hi','hoch'], mittel:['mid','mittel'], niedrig:['lo','niedrig']};
+    const [cls,label] = map[m] || ['neutral',m];
+    return `<span class="badge ${cls}">${label}</span>`;
+  },
+
+  _cards(items){
+    return items.map(it=>`
+      <article class="s-card" data-ticker="${it.ticker}">
+        <div class="tk">${it.ticker}</div>
+        <div class="name">${it.name}</div>
+        <div class="trend">${this._trendDot(it.trend)}${it.trendLabel}</div>
+
+        <div class="meta">
+          <span class="exch">${it.exchange}</span>
+          <span>${it.sector}</span>
+          <span class="price">${this._fmtPrice(it.price,it.currency)}</span>
+          <span class="chg">${this._fmtPct(it.changePct)}</span>
+        </div>
+
+        <div class="stats">
+          <div class="k"><span class="label">RSI</span><span class="v">${it.rsi} · ${it.rsiLabel}</span></div>
+          <div class="k"><span class="label">MACD</span><span class="v">${it.macd>0?'+':''}${it.macd.toFixed(2)}</span></div>
+          <div class="k"><span class="label">52W</span><span class="v">${it.range52w}%</span></div>
+          <div class="k"><span class="label">Alert</span><span class="v">${it.alert} ${this._alertBadge(it.alertState)}</span></div>
+          <div class="k"><span class="label">Entry</span><span class="v">${it.entry} €</span></div>
+          <div class="k"><span class="label">Momentum</span><span class="v">${this._momentumBadge(it.momentum)}</span></div>
+          <div class="k"><span class="label">Perf</span><span class="v ${it.perf>=0?'pos':'neg'}">${it.perf>=0?'+':''}${it.perf}%</span></div>
+          <div class="k"><span class="label">Tags</span><span class="v">${it.tags.map(t=>`<span class="tag">${t}</span>`).join(' ')}</span></div>
+        </div>
+
+        <div class="why">
+          <span><b>Why now:</b> ${it.why}</span>
+          <span><b>Next:</b> ${it.next}</span>
+        </div>
+      </article>
+    `).join('');
+  },
+
+  _table(items){
+    const rows = items.map(it=>`
+      <tr data-ticker="${it.ticker}">
+        <td>
+          <div class="t-name">
+            <span class="tk">${it.ticker}</span>
+            <span class="full">${it.name}</span>
+          </div>
+        </td>
+        <td>
+          <div class="t-pos">
+            <span class="v">${it.exchange}</span>
+            <span class="pct">${it.sector}</span>
+          </div>
+        </td>
+        <td class="num">${this._fmtPrice(it.price,it.currency)}</td>
+        <td class="num">
+          <div class="t-pos">
+            <span class="v ${it.changePct>=0?'pos':'neg'}">${it.changePct>=0?'+':''}${it.changePct.toFixed(2)}%</span>
+            <span class="pct ${it.perf>=0?'pos':'neg'}">${it.perf>=0?'+':''}${it.perf}%</span>
+          </div>
+        </td>
+        <td>
+          <div class="t-rtg">
+            ${this._trendDot(it.trend)+'<span style="font-size:10px;text-transform:uppercase;letter-spacing:.04em">'+it.trendLabel+'</span>'}
+            <div class="bar"><i style="width:${Math.round(it.rating*100)}%"></i></div>
+          </div>
+        </td>
+      </tr>
+    `).join('');
+    return `
+      <div class="s-table-wrap">
+        <table class="s-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Position</th>
+              <th class="num">Preis</th>
+              <th class="num">Δ / Perf</th>
+              <th class="num">Rating</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    `;
+  }
+};
+
+/* ════════════════════════════════════════════════
+   § 6  EVENTS  (stubs from Event Map)
+   ════════════════════════════════════════════════ */
+function bind(id, ev, fn){ const el = document.getElementById(id); if(!el){ console.warn('missing',id); return; } el.addEventListener(ev, fn); }
+function setFrame(f){ STATE.state.frame=f; Store.save(STATE); Render.frame(); }
+
+const Events = {
+  init(){
+    // Top bar
+    bind('menu-nav','click', e=>{
+      console.log('[evt] #menu-nav click → toggle frame');
+      setFrame(STATE.state.frame==='screener' ? 'portfolio' : 'screener');
+    });
+    bind('menu-nav-btn-screener','click',()=>{ console.log('[evt] #menu-nav-btn-screener click → open Screener'); setFrame('screener'); });
+    bind('menu-nav-btn-portfolio','click',()=>{ console.log('[evt] #menu-nav-btn-portfolio click → open Portfolio'); setFrame('portfolio'); });
+
+    bind('btn-json-import','click',()=>console.log('[evt] #btn-json-import click → open file picker'));
+    bind('btn-json-export','click',()=>console.log('[evt] #btn-json-export click → copy JSON to clipboard'));
+    bind('btn-blob','click', e=>{
+      console.log('[evt] #btn-blob click → save raw JSON to netlify');
+      const btn = e.currentTarget; btn.classList.add('spinning');
+      setTimeout(()=>btn.classList.remove('spinning'), 1200);
+    });
+    bind('btn-config','click',()=>console.log('[evt] #btn-config click → open API config modal'));
+
+    // Screener toolbar
+    bind('btn-element-card-view','click',()=>{ console.log('[evt] #btn-element-card-view'); STATE.state.view='card'; Store.save(STATE); Render.viewToggle(); });
+    bind('btn-element-table-view','click',()=>{ console.log('[evt] #btn-element-table-view'); STATE.state.view='table'; Store.save(STATE); Render.viewToggle(); });
+    bind('btn-element-refresh','click',()=>console.log('[evt] #btn-element-refresh click → simple API call'));
+    bind('btn-element-fullrefresh','click',()=>console.log('[evt] #btn-element-fullrefresh click → full API call'));
+
+    // Portfolio tabs
+    $$('.menu-nav-portfolio-tab').forEach(btn=>{
+      btn.addEventListener('click',()=>{ console.log('[evt] #menu-nav-portfolio-tab', btn.dataset.tab); STATE.state.portfolioTab=btn.dataset.tab; Store.save(STATE); Render.tabs(); });
+    });
+
+    // Bottom nav
+    bind('nav-bottom-element-home','click',()=>{ console.log('[evt] #nav-bottom-element-home → landing'); setFrame('screener'); });
+    bind('nav-bottom-element-alert','click',()=>console.log('[evt] #nav-bottom-element-alert → all alerts'));
+    bind('nav-bottom-element-dropdown','change', e=>{ console.log('[evt] #nav-bottom-element-dropdown →', e.target.value); STATE.state.bucket=e.target.value; Store.save(STATE); });
+  }
+};
+
+/* ════════════════════════════════════════════════
+   § 7  INIT
+   ════════════════════════════════════════════════ */
+function init(){
+  console.log(`[${CONFIG.app}] v${CONFIG.version} init`);
+  Events.init();
+  // restore state into UI controls
+  $('#nav-bottom-element-dropdown').value = STATE.state.bucket;
+  Render.all();
+  if (window.lucide) lucide.createIcons();
+}
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
