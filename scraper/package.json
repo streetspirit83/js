@@ -1,0 +1,14 @@
+{
+  "name": "web-scraper",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Playwright-based web scraping app",
+  "scripts": {
+    "start": "node src/index.js",
+    "scrape": "node src/index.js"
+  },
+  "dependencies": {
+    "playwright": "^1.48.0"
+  }
+}
