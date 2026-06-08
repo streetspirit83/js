@@ -2,8 +2,10 @@ import { chromium } from 'playwright';
 
 const URL = 'https://altindex.com/insider-buying';
 
-const browser = await chromium.launch();
-const page = await browser.newPage();
+const browser = await chromium.launch({
+  executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
+});
+const page = await browser.newPage({ ignoreHTTPSErrors: true });
 await page.goto(URL, { waitUntil: 'networkidle' });
 
 // Generic table scraper: maps each row's cells to the header row's column names.
