@@ -6,7 +6,8 @@
   "description": "Playwright-based web scraping app",
   "scripts": {
     "start": "node src/index.js",
-    "scrape": "node src/index.js"
+    "scrape": "node src/index.js",
+    "scrape:insider-buying": "node src/insider-buying.js"
   },
   "dependencies": {
     "playwright": "^1.48.0"
